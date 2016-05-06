@@ -1,6 +1,10 @@
 **Wanna contribute?** firemisp is an open, MIT-licensed, collaborative development effort that heavily
 relies on contributions from the whole community. We welcome tickets, pull requests, feature suggestions.
 
+#Code style
+
+Try to stick to https://google.github.io/styleguide/pyguide.html
+
 # Provide sample data
 
 If you want to improve quality of the tool, you can contribute data files that can be used to test the import and parsing features.
