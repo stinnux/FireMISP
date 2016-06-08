@@ -60,3 +60,10 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+keys.py
+config.cfg
+*.*~
+*.pyc
+*.py~
+testing/real
