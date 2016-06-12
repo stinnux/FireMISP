@@ -1,6 +1,13 @@
-python script for interacting with misp
+python script for interacting with misp to push information from a FireEye Alert JSON to a MISP instance
 
 Inspired by: https://github.com/spcampbell/FireStic
+
+Runnning one or multiple FireEye systems there is a feature to send alerts to a given webserver.
+The firemisp.py sets up a webserver to be able to receive the Alerts.
+It will then process the alerts and use certain aspects of the alert and map it to MISP event.
+
+pyFireEyeAlert is a mapper of FireEye Alert in a python class. New key - values pairs can be easily added to the mapping.
+
 
 Installation
 ============
