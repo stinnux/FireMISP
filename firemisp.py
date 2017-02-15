@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3.6
 
 
 # FireMisp - Python script for pushing FireEye json alerts
@@ -12,14 +12,14 @@
 # Please see: https://github.com/spcampbell/firestic
 #
 
-from BaseHTTPServer import BaseHTTPRequestHandler
-from BaseHTTPServer import HTTPServer
-from SocketServer import ThreadingMixIn
+from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
+from socketserver import ThreadingMixIn
 
 import simplejson as json
 
 from firemisp_settings import *
-from ldap_query import search_host_and_fqdn, search_userprinciplename, search_for_mail
+# from ldap_query import search_host_and_fqdn, search_userprinciplename, search_for_mail
 
 filename1 = ""
 
@@ -59,7 +59,7 @@ class MyRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         logger.debug("someone sended a post")
         # get the posted data and remove newlines
-        data = self.rfile.read(int(self.headers.getheader('Content-Length')))
+        data = self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8')
         clean = data.replace('\n', '')
         try:
             # Write the data to a file as well for debugging later on
@@ -161,7 +161,7 @@ def check_for_previous_events(fireeye_alert):
                 return_event = misp.get(str(event))  # not get_event!
                 return return_event
 
-        from urllib import quote
+        from urllib.parse import quote
         # Based on Alert Url
 
         if fireeye_alert.alert_url and event is False:
@@ -317,7 +317,7 @@ def map_alert_to_event(auto_comment, event, fireeye_alert):
 
 
 
-    misp.add_internal_text(event, fireeye_alert.alert_id, False, auto_comment)
+    misp.add_internal_text(event, fireeye_alert.alert_id, 'Internal reference', False, auto_comment)        
     ### Start Tagging here
     # TLP change it if you want to change default TLP
     misp.add_tag(event, "tlp:amber")
@@ -342,10 +342,10 @@ def map_alert_to_event(auto_comment, event, fireeye_alert):
 
     # Url of the original Alert
     if fireeye_alert.alert_url:
-        misp.add_internal_link(event, fireeye_alert.alert_url, False, "Alert url: " +auto_comment)
+        misp.add_internal_link(event, fireeye_alert.alert_url, 'Internal reference', False, "Alert url: " +auto_comment)
 
     if fireeye_alert.alert_ma_id:
-        misp.add_internal_text(event, fireeye_alert.alert_ma_id, False, "Alert ID "+auto_comment)
+        misp.add_internal_text(event, fireeye_alert.alert_ma_id, 'Internal reference', False, "Alert ID "+auto_comment)
 
 
     # infos about the product detected it
@@ -357,13 +357,13 @@ def map_alert_to_event(auto_comment, event, fireeye_alert):
 
     # if attack was by E-Mail
     if fireeye_alert.attacker_email:
-        misp.add_email_src(event, fireeye_alert.attacker_email, False, auto_comment)
+        misp.add_email_src(event, fireeye_alert.attacker_email, 'Payload delivery', False, auto_comment)
 
     if fireeye_alert.alert_src_domain:
         misp.add_domain(event,fireeye_alert.alert_src_domain,"Payload delivery",False,auto_comment)
 
     if fireeye_alert.mail_subject:
-        misp.add_email_subject(event, fireeye_alert.mail_subject, False, auto_comment)
+        misp.add_email_subject(event, fireeye_alert.mail_subject, 'Payload delivery', False, auto_comment)
     if fireeye_alert.victim_email:
         #TODO: Addd ldap details here as well!
         misp.add_email_dst(event, fireeye_alert.victim_email, 'Payload delivery', False, auto_comment)
@@ -374,28 +374,27 @@ def map_alert_to_event(auto_comment, event, fireeye_alert):
     if fireeye_alert.malware_http_header:
         misp.add_traffic_pattern(event, fireeye_alert.malware_http_header, 'Network activity', False, auto_comment)
     if fireeye_alert.alert_src_ip:
-        misp.add_target_machine(event, fireeye_alert.alert_src_ip, False, auto_comment, None)
-
+        misp.add_target_machine(event, fireeye_alert.alert_src_ip, 'Targeting data', False, auto_comment, None)
 
     if fireeye_alert.root_infection:
         misp.add_internal_comment(event,fireeye_alert.root_infection,False,"Root infection",None)
 
     if fireeye_alert.smtp_header:
-        misp.add_internal_text(event,fireeye_alert.smtp_header,False,"smtp_header "+auto_comment)
+        misp.add_internal_text(event,fireeye_alert.smtp_header,'Internal reference',False,"smtp_header "+auto_comment)
 
         from email import parser
         msg = parser.Parser().parsestr(fireeye_alert.smtp_header, headersonly=True)
 
         if 'From' in msg:
             logger.debug("from found %s",msg['From'])
-            misp.add_email_src(event,email=msg['From'], to_ids=False, comment="From: "+auto_comment)
+            misp.add_email_src(event,email=msg['From'], category='Payload delivery', to_ids=False, comment="From: "+auto_comment)
 
         if 'To' in msg:
             #TODO: Add LDAP Info for the victim!
 
             logger.debug("to found %s",msg['To'])
             misp.add_email_dst(event,email=msg['To'],category='Payload delivery', to_ids=False,comment="to: "+auto_comment)
-            misp.add_internal_other(event,reference=msg['To'],to_ids=False,comment="to: "+auto_comment)
+            misp.add_internal_other(event,reference=msg['To'], category='Internal reference', to_ids=False,comment="to: "+auto_comment)
 
             #TODO hacky to get a real mail adress
             msg_to = str.replace(msg['To'],"<","")
@@ -403,14 +402,16 @@ def map_alert_to_event(auto_comment, event, fireeye_alert):
             fireeye_alert.victim_email=msg_to
             misp.add_email_dst(event,email=msg_to,category='Payload delivery', to_ids=False,comment="to: "+auto_comment)
 
-            ownerorg = search_for_mail(msg_to, 'department')
-            ownerorg2 = search_for_mail(msg_to, 'company')
+            #TODO: Don't know what happens here.
 
-            if ownerorg is not False:
-                misp.add_target_org(event, target=ownerorg, to_ids=False,
-                                    comment="Owner dep of " + msg_to)
-                misp.add_target_org(event, target=ownerorg2, to_ids=False,
-                                    comment="Owner company of " + msg_to)
+            # ownerorg = search_for_mail(msg_to, 'department')
+            # ownerorg2 = search_for_mail(msg_to, 'company')
+
+            # if ownerorg is not False:
+            #     misp.add_target_org(event, target=ownerorg, category='Targeting data', to_ids=False,
+            #                         comment="Owner dep of " + msg_to)
+            #     misp.add_target_org(event, target=ownerorg2, category='Targeting data', to_ids=False,
+            #                         comment="Owner company of " + msg_to)
 
 
     if fireeye_alert.alert_src_url:
@@ -431,36 +432,38 @@ def map_alert_to_event(auto_comment, event, fireeye_alert):
                                  None)
 
     if fireeye_alert.alert_src_host:
-        misp.add_target_machine(event, fireeye_alert.alert_src_host, False, auto_comment, None)
+        misp.add_target_machine(event, fireeye_alert.alert_src_host, 'Targeting data', False, auto_comment, None)
 
         # TODO: check that
         # import sys
         # sys.path.insert(0, './ldap-query')
 
-        OS = search_host_and_fqdn(fireeye_alert.alert_src_host, 'operatingSystem')
-        description = search_host_and_fqdn(fireeye_alert.alert_src_host, 'description')
+        # TODO: Don't know what happens here.
 
-        ownerorg = search_userprinciplename(description, 'department')
-        ownerorg2 = search_userprinciplename(description, 'company')
+        #OS = search_host_and_fqdn(fireeye_alert.alert_src_host, 'operatingSystem')
+        #description = search_host_and_fqdn(fireeye_alert.alert_src_host, 'description')
 
-        if ownerorg is not False:
-            misp.add_target_org(event,target=ownerorg,to_ids=False,comment="Owner dep of "+fireeye_alert.alert_src_host)
-            misp.add_target_org(event,target=ownerorg2,to_ids=False,comment="Owner company of "+fireeye_alert.alert_src_host)
+        #ownerorg = search_userprinciplename(description, 'department')
+        #ownerorg2 = search_userprinciplename(description, 'company')
+
+        #if ownerorg is not False:
+            #misp.add_target_org(event,target=ownerorg, category='Targeting data', to_ids=False,comment="Owner dep of "+fireeye_alert.alert_src_host)
+            #misp.add_target_org(event,target=ownerorg2, category='Targeting data', to_ids=False,comment="Owner company of "+fireeye_alert.alert_src_host)
 
 
-        logger.debug("Searching for %s result %s", fireeye_alert.alert_src_host, OS)
-        misp.add_internal_comment(event, OS, False, "OS of " + fireeye_alert.alert_src_host + auto_comment)
-        misp.add_internal_text(event, description, False,
-                               "description of " + fireeye_alert.alert_src_host + auto_comment)
+        #logger.debug("Searching for %s result %s", fireeye_alert.alert_src_host, OS)
+        #misp.add_internal_comment(event, OS, 'Internal reference', False, "OS of " + fireeye_alert.alert_src_host + auto_comment)
+        #misp.add_internal_text(event, description, 'Internal reference', False,
+        #                       "description of " + fireeye_alert.alert_src_host + auto_comment)
 
     # TODO: this is not finished yet
-    if fireeye_alert.c2services:
-        misp.add_domain(event, fireeye_alert.c2_address, 'Network activity', True, auto_comment, None)
-        misp.add_domain(event, fireeye_alert.c2_address, 'Network activity', True, auto_comment, None)
-        misp.add_ipdst(event, fireeye_alert.c2_address, 'Network activity', True, "C2 IP " + auto_comment, None)
-        misp.add_traffic_pattern(event, fireeye_alert.c2_port, 'Network activity', True, "C2 Port " + auto_comment, None)
-        misp.add_traffic_pattern(event, fireeye_alert.c2_protocoll, 'Network activity', True, "C2 Protocol " + auto_comment, None)
-        misp.add_traffic_pattern(event, fireeye_alert.c2_channel, 'Network activity', True, "C2 Channel " + auto_comment, None)
+    # if fireeye_alert.c2services:
+    #     misp.add_domain(event, fireeye_alert.c2_address, 'Network activity', True, auto_comment, None)
+    #     misp.add_domain(event, fireeye_alert.c2_address, 'Network activity', True, auto_comment, None)
+    #     misp.add_ipdst(event, fireeye_alert.c2_address, 'Network activity', True, "C2 IP " + auto_comment, None)
+    #     misp.add_traffic_pattern(event, fireeye_alert.c2_port, 'Network activity', True, "C2 Port " + auto_comment, None)
+    #     misp.add_traffic_pattern(event, fireeye_alert.c2_protocoll, 'Network activity', True, "C2 Protocol " + auto_comment, None)
+    #     misp.add_traffic_pattern(event, fireeye_alert.c2_channel, 'Network activity', True, "C2 Channel " + auto_comment, None)
 
     # add raw alert as attachment
     if filename1 is not "":
@@ -500,10 +503,9 @@ if __name__ == "__main__":
     misp = init_misp(misp_url, misp_key)
 
     #clean the database for test purposes
-    '''for i in range (1300,1388,1):
-        misp.delete_event(i)
-    exit()
-    '''
+    # for i in range (34,64,1):
+    #     misp.delete_event(i)
+    # exit()
 
     logging.basicConfig(level=logging.WARNING,
                         filename=firemisp_logfile,

@@ -1,3 +1,4 @@
+#!/usr/bin/python3.6
 '''
 Script to send FireEye alerts saved as json files to FireStic for testing.
 
@@ -29,25 +30,25 @@ def processFile(inputfile,serverurl):
         with open(inputfile) as json_file:
 
             file_data = json_file.read()
-            print(json.dumps(file_data, sort_keys=True, indent=4, separators=(',', ': ')))
+            print((json.dumps(file_data, sort_keys=True, indent=4, separators=(',', ': '))))
             try:
                 r = requests.post(serverurl, data=file_data, headers=headers, timeout=5)
-            except Exception, e:
-                print " "
-                print "COMMUNICATION ERROR : " + str(e)
-                print " "
+            except e:
+                print(" ")
+                print("COMMUNICATION ERROR : " + str(e))
+                print(" ")
                 sys.exit(2)
-    except Exception, e:
-        print " "
-        print "FILE ERROR : " + str(e)
-        print " "
+    except Exception as e:
+        print(" ")
+        print("FILE ERROR : " + str(e))
+        print(" ")
 
-    print inputfile + " sent to " + serverurl + ". Status code: " + str(r.status_code) + "."
+    print(inputfile + " sent to " + serverurl + ". Status code: " + str(r.status_code) + ".")
 
     return
 
 def printopts():
-    print '''
+    print('''
     USAGE:
     -f --file       a specific json file to send
     -d --dir        directory of json files to send. Use ./ for current directory
@@ -60,7 +61,7 @@ def printopts():
     fstest.py -f ./testalert.json -u localhost -p 8080
     fstest.py -d ./alerts -t 2 -u 192.168.1.2 -p 8080
     fstest.py -d ./ -u localhost -p 8888
-    '''
+    ''')
 
 def main(argv):
     inputfile = ''
@@ -77,7 +78,7 @@ def main(argv):
         sys.exit(2)
 
     if not len(opts):
-        print 'No options specified:'
+        print('No options specified:')
         printopts()
         sys.exit(2)
     for opt, arg in opts:
@@ -99,7 +100,7 @@ def main(argv):
 
     # if no url or port --> error
     if (url == '') or (port == ''):
-        print "ERROR: url and port are required"
+        print("ERROR: url and port are required")
         printopts()
         sys.exit(2)
 
@@ -124,9 +125,9 @@ def main(argv):
 
 
         else:
-            print "No files of type .json found in directory: " + inputdir
+            print("No files of type .json found in directory: " + inputdir)
     else:
-        print "unknown mode"
+        print("unknown mode")
 
 if __name__ == "__main__":
    main(sys.argv[1:])

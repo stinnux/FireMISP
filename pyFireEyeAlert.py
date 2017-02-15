@@ -199,12 +199,16 @@ class pyFireEyeAlert (object):
             # use alert.occurred for timestamp. It is different for IPS vs other alerts
             # ips-event alert.occurred format: 2014-12-11T03:28:08Z
             # all other alert.occurred format: 2014-12-11 03:28:33+00
-            if p_alert_json['alert']['name'] == 'ips-event':
-                timeFormat = '%Y-%m-%dT%H:%M:%SZ'
-            else:
-                timeFormat = '%Y-%m-%d %H:%M:%S+00'
+            
+            # if p_alert_json['alert']['name'] == 'ips-event':
+            #     timeFormat = '%Y-%m-%dT%H:%M:%SZ'
+            # else:
+            #     timeFormat = '%Y-%m-%d %H:%M:%S+00'
 
-            oc = datetime.strptime(str(p_alert_json['alert']['occurred']), timeFormat)
+            try:
+                oc = datetime.strptime(str(p_alert_json['alert']['occurred']), '%Y-%m-%d %H:%M:%S+00')
+            except ValueError:
+                oc = datetime.strptime(str(p_alert_json['alert']['occurred']), '%Y-%m-%dT%H:%M:%SZ')
             self.occured = oc.isoformat()
             logger.debug("date: %s",oc.isoformat())
             # Put the formatted time into @timestamp
@@ -231,7 +235,7 @@ class pyFireEyeAlert (object):
 
             logger.debug("Parsing finished")
         except ValueError as e:
-            logger.error("Value Error: %s",e.message)
+            logger.error("Value Error: %s", format(e))
 
     def parse_explanation(self, theJson_explanation):
 
